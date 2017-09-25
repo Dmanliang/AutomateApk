@@ -1,0 +1,96 @@
+apply plugin: 'com.android.application'
+
+android {
+    compileSdkVersion 26
+    buildToolsVersion "26.0.1"
+    defaultConfig {
+        applicationId "com.example.dell.automateapk"
+        minSdkVersion 19
+        targetSdkVersion 26
+        versionCode getSelfDefinedVersion("code")
+        versionName getSelfDefinedVersion("name")
+        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+    }
+    signingConfigs {
+        release {
+        }
+    }
+
+    loadSigningConfigs()
+
+    buildTypes {
+        debug {
+            minifyEnabled false
+            debuggable true
+        }
+
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
+        }
+    }
+
+    sourceSets {
+        main {
+            assets.srcDirs = ['src/main/assets', 'src/main/assets/']
+        }
+    }
+
+    android.applicationVariants.all { variant ->
+        variant.outputs.each { output ->
+            def file = output.outputFile
+            output.outputFile = new File(file.parent, file.name.replace(".apk", "-" + defaultConfig.versionName + ".apk"))
+        }
+    }
+}
+
+/**
+ * 加载签名配置文件
+ */
+def loadSigningConfigs() {
+    def Properties props = new Properties()
+    def propFile = file('../signing.properties')
+    if (propFile.canRead()) {
+        props.load(new FileInputStream(propFile))
+        if (props != null && props.containsKey('RELEASE_STORE_FILE') && props.containsKey('RELEASE_STORE_PASSWORD') &&
+                props.containsKey('RELEASE_KEY_ALIAS') && props.containsKey('RELEASE_KEY_PASSWORD')) {
+            android.signingConfigs.release.storeFile = file(props['RELEASE_STORE_FILE'])
+            android.signingConfigs.release.storePassword = props['RELEASE_STORE_PASSWORD']
+            android.signingConfigs.release.keyAlias = props['RELEASE_KEY_ALIAS']
+            android.signingConfigs.release.keyPassword = props['RELEASE_KEY_PASSWORD']
+        } else {
+            android.buildTypes.release.signingConfig = null
+        }
+    } else {
+        android.buildTypes.release.signingConfig = null
+    }
+}
+
+def getSelfDefinedVersion(type) {
+    int aa = 1
+    int bb = 0
+    Process process = "git rev-list --count HEAD".execute()
+    process.waitFor()
+    int cccc = process.getText().toInteger()
+
+    if ("code".equals(type)) {
+        aa * 1000000 + bb * 10000 + cccc
+    } else if ("name".equals(type)) {
+        String today = new Date().format("yyMMdd")
+        process = "git describe --always".execute()
+        process.waitFor()
+        String sha1 = process.getText().trim()
+        "$aa.$bb.$cccc.$today.$sha1"
+    }
+}
+
+dependencies {
+    compile fileTree(dir: 'libs', include: ['*.jar'])
+    androidTestCompile('com.android.support.test.espresso:espresso-core:2.2.2', {
+        exclude group: 'com.android.support', module: 'support-annotations'
+    })
+    compile 'com.android.support:appcompat-v7:26.+'
+    compile 'com.android.support.constraint:constraint-layout:1.0.2'
+    testCompile 'junit:junit:4.12'
+}
